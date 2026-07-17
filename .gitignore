@@ -16,3 +16,4 @@ backend/*.db
 
 # OS
 .DS_Store
+backend/*.db-journal
