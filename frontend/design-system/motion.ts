@@ -69,6 +69,8 @@ export const animation = {
   workflowReveal: "animate-fade-in-up",
   /** Gentle breathing used on the empty-state illustration's glow ring. */
   softPulse: "animate-soft-pulse",
+  /** Slow vertical float for section illustrations (Hero, AI Intelligence). */
+  floatSlow: "animate-float-slow",
 } as const;
 
 /**
@@ -93,6 +95,16 @@ export function workflowStepDelay(index: number): string {
   return `${stagger.workflowStepBaseDelayMs + index * stagger.workflowStepIntervalMs}ms`;
 }
 
+/**
+ * General-purpose stagger delay for any row of cards revealing one
+ * after another (How LifeOS Works, Goal Showcase, AI Intelligence) -
+ * same base+interval math as `workflowStepDelay`, just not tied to that
+ * one component's naming.
+ */
+export function staggerDelay(index: number, baseMs = 100, intervalMs = 90): string {
+  return `${baseMs + index * intervalMs}ms`;
+}
+
 export const motion = {
   duration,
   easing,
@@ -102,4 +114,5 @@ export const motion = {
   stagger,
   workflowStepDelay,
   heroSectionDelay,
+  staggerDelay,
 } as const;

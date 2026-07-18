@@ -22,9 +22,12 @@ export const radius = {
   md: { class: "rounded-lg", px: 8 },
   /** 12px - the app's default control radius: Button, Card, Input, Modal. */
   lg: { class: "rounded-xl", px: 12 },
-  /** 16px - the empty-state onboarding panel. */
+  /** 16px - reserved for medium surfaces. */
   xl: { class: "rounded-2xl", px: 16 },
-  /** 24px - reserved for large future surfaces. */
+  /** 24px - Card, Modal, and the empty-state onboarding panel all use
+   *  this - Apple-style "premium floating card" surfaces read best with
+   *  a generous radius rather than the tighter control radius used for
+   *  buttons/inputs. */
   "2xl": { class: "rounded-3xl", px: 24 },
   /** Fully round - chips, badges, avatars, status dots. */
   pill: { class: "rounded-full", px: 9999 },

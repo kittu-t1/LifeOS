@@ -31,7 +31,7 @@ export default function Modal({ open, onClose, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className={`border-border bg-surface-elevated w-full max-w-lg ${radius.lg.class} border p-6 ${shadows.xl}`}
+        className={`border-border bg-surface-elevated w-full max-w-lg ${radius["2xl"].class} border p-6 ${shadows.xl}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

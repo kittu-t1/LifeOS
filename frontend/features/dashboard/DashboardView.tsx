@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Plus } from "lucide-react";
-import Button from "@/components/ui/Button";
 import { motion } from "@/design-system/motion";
-import { typography } from "@/design-system/typography";
 import CreateGoalModal from "@/features/dashboard/CreateGoalModal";
 import EmptyGoalsState from "@/features/dashboard/EmptyGoalsState";
 import GoalCard from "@/features/dashboard/GoalCard";
+import GoalShowcaseSection from "@/features/dashboard/GoalShowcaseSection";
+import HeroSection from "@/features/dashboard/HeroSection";
 import { listGoals } from "@/services/goals";
 import type { Goal } from "@/types/goal";
 
@@ -19,6 +18,31 @@ function timeOfDayGreeting(): string {
   return "Good evening";
 }
 
+/**
+ * The homepage as a storytelling landing experience (Hero -> Goal
+ * Showcase), ending in the real, functional dashboard - the actual
+ * Create Goal flow and goal list. Every section above "Your Goals" is
+ * presentation that explains the product; "Your Goals" is where the
+ * product actually runs. See docs/vision.md for the underlying goal ->
+ * workspace -> execution -> outcome arc this page is telling.
+ *
+ * Two sections intentionally aren't repeated here - both used to be
+ * compact inline teasers, and both duplicated /explore
+ * (features/explore/ExploreView.tsx) with no real benefit once the
+ * "Explore LifeOS" tile reliably takes people to the full version:
+ *   - the step-by-step "How LifeOS works" walkthrough (removed; was
+ *     HowItWorksSection.tsx)
+ *   - "The intelligence behind LifeOS" capability list (removed; was
+ *     AIIntelligenceSection.tsx) - three of its four capabilities
+ *     (roadmap generation, personal reflection, and progress tracking)
+ *     restated what the AI Planning/Daily Execution/Reflection steps on
+ *     /explore already say; the one genuinely new idea, smart
+ *     reminders, was folded into the Daily Execution step's brief
+ *     (see workflowSteps.ts) instead of keeping a whole section alive
+ *     for it.
+ * One copy of this content, reached through one link, beats two copies
+ * that can drift apart.
+ */
 export default function DashboardView() {
   const router = useRouter();
   const [goals, setGoals] = useState<Goal[] | null>(null);
@@ -42,41 +66,35 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-24 px-8 py-28 sm:py-36">
-      {/* Hero - typography carries the page, so the copy stays down to two
-          short lines (see docs/vision.md's "goal -> workspace -> execution
-          -> outcome" arc) rather than a sentence-length subtitle. No name
-          in the headline on purpose: the confidence comes from the
-          statement, not the personalization. */}
-      <div className="animate-fade-in-up flex flex-col items-start gap-8">
-        <h1
-          className={`text-foreground max-w-2xl text-[${typography.displayXL.fontSize}] leading-[${typography.displayXL.lineHeight}] font-semibold tracking-tight sm:text-[${typography.displayXL.responsive.fontSize}] sm:leading-[${typography.displayXL.responsive.lineHeight}]`}
-        >
-          {timeOfDayGreeting()}.
-          <br />
-          <span className="text-foreground-secondary">What will you build today?</span>
-        </h1>
-        <p className="text-muted-foreground max-w-sm text-base leading-relaxed">
-          LifeOS turns every goal into an intelligent workspace.
-        </p>
-        <Button onClick={() => openCreateModal()} className="group">
-          <Plus size={16} />
-          Create Goal
-          <ArrowRight
-            size={15}
-            className={`${motion.transition.lift} group-hover:translate-x-0.5`}
-          />
-        </Button>
-      </div>
+    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-24 px-8 py-20 sm:gap-32 sm:py-28">
+      <HeroSection onCreateGoal={() => openCreateModal()} />
+
+      <GoalShowcaseSection onSelectExample={(title) => openCreateModal(title)} />
 
       <div
-        className="animate-fade-in-up flex flex-col gap-4"
+        className="animate-fade-in-up flex flex-col gap-8"
         style={{ animationDelay: motion.heroSectionDelay() }}
       >
-        {goals === null && <p className="text-muted-foreground text-sm">Loading your goals…</p>}
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          {/* Names this section for what it actually is - the live,
+              functional part of the page below the storytelling sections
+              above it (see the "Dashboard Experience" framing: LifeOS as
+              a "Life Command Center," not a bare goal list). */}
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            Life Command Center
+          </p>
+          {goals !== null && goals.length > 0 && (
+            <p className="text-muted-foreground text-sm">{timeOfDayGreeting()}, welcome back.</p>
+          )}
+          <h2 className="text-foreground text-3xl font-semibold tracking-tight">Your Goals</h2>
+        </div>
+
+        {goals === null && (
+          <p className="text-muted-foreground text-center text-sm">Loading your goals…</p>
+        )}
 
         {goals !== null && goals.length === 0 && (
-          <EmptyGoalsState onSelectExample={(title) => openCreateModal(title)} />
+          <EmptyGoalsState onCreateGoal={() => openCreateModal()} />
         )}
 
         {goals !== null && goals.length > 0 && (

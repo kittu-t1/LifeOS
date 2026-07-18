@@ -19,10 +19,12 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
  * presence on hover, used for clickable cards like GoalCard. The
  * decorative highlight is `absolute`, so it drops out of flex flow and
  * never interferes with a `className` like "flex flex-col gap-4" passed
- * in by a caller.
+ * in by a caller. Radius is `radius['2xl']` (24px) - Apple-product cards
+ * read as more premium with a generous corner than the tighter control
+ * radius used for buttons/inputs.
  *
  * Colors, shadows, and motion all come from the design system
- * (@/design-system) - `hover:border-white/[0.14]` is the one exception,
+ * (@/design-system) - `hover:border-black/[0.12]` is the one exception,
  * left as Tailwind's own color+opacity syntax (equivalent to
  * `colors.borderStrong`) since a raw rgba string with spaces can't be
  * safely interpolated into a Tailwind arbitrary-value class.
@@ -30,7 +32,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export default function Card({ children, hoverable = false, className = "", ...rest }: CardProps) {
   return (
     <div
-      className={`border-border bg-surface relative overflow-hidden ${radius.lg.class} border p-5 ${shadows.floating} ${motion.transition.cardHover} ${hoverable ? `hover:bg-surface-hover hover:${motion.transform.hoverLift} hover:border-white/[0.14] hover:${shadows.floatingHover}` : ""} ${className}`}
+      className={`border-border bg-surface relative overflow-hidden ${radius["2xl"].class} border p-6 ${shadows.floating} ${motion.transition.cardHover} ${hoverable ? `hover:bg-surface-hover hover:${motion.transform.hoverLift} hover:border-black/[0.12] hover:${shadows.floatingHover}` : ""} ${className}`}
       {...rest}
     >
       <div

@@ -37,7 +37,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 ${radius.lg.class} text-sm font-medium ${motion.transition.buttonHover} ${motion.transform.buttonPress} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${variantClasses[variant]} ${className}`}
+      className={`focus-visible:ring-accent inline-flex items-center justify-center gap-2 ${radius.lg.class} text-sm font-medium ${motion.transition.buttonHover} ${motion.transform.buttonPress} focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${variantClasses[variant]} ${className}`}
       {...rest}
     >
       {children}
