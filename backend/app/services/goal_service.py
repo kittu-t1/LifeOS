@@ -20,7 +20,9 @@ from app.schemas.goal import GoalCreate
 
 
 def create_goal(db: Session, *, user_id: uuid.UUID, data: GoalCreate) -> Goal:
-    goal = Goal(user_id=user_id, title=data.title, description=data.description)
+    goal = Goal(
+        user_id=user_id, title=data.title, description=data.description, deadline=data.deadline
+    )
     db.add(goal)
     db.flush()  # assigns goal.id without committing yet
 

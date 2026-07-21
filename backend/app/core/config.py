@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
 
+    # --- AI Planner (see app/planner/) ---
+    # No default key - the app must run and be testable (fake provider in
+    # tests, clear startup-less failure in dev) without one being set.
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    planner_prompt_version: str = "planner_v1"
+    planner_llm_timeout_seconds: int = 45
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property

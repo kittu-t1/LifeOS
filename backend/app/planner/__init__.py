@@ -1,13 +1,17 @@
 """
 Planner module.
 
-Owns the logic for turning a user Goal into a structured, executable plan
-(a sequence of steps/tasks with dependencies). The Planner Agent (see
-app/agents/planner_agent.py) is the orchestration-facing wrapper around
-whatever lives in here - this module holds the actual planning logic/
-algorithms, kept separate so it can be tested and evolved independently
-of how it's invoked.
+Owns the AI Planner MVP's actual planning logic: the versioned prompt
+(prompts.py), the LLM provider abstraction and its OpenAI adapter
+(llm/), and structured-output parsing/validation (parser.py).
+app/services/planner_service.py is the orchestration layer that calls
+into this module and persists the result - see that file for the full
+request -> LLM -> validate -> save flow.
 
-Empty placeholder - no implementation yet. See docs/agents.md and
-docs/architecture.md for the intended design.
+app/agents/planner_agent.py (a separate, still-unimplemented placeholder)
+is intentionally NOT wired up here. The AI Planner MVP spec is explicit
+that this phase stays a simple, direct call chain with no multi-agent
+orchestration - PlannerAgent is left for a later phase where agents
+genuinely need to collaborate (see docs/agents.md), not routed through
+today just to satisfy the file's existence.
 """

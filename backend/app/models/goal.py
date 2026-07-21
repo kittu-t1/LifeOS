@@ -19,6 +19,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.session import Base
 
 if TYPE_CHECKING:
+    from app.models.plan import Plan
+    from app.models.planner_run import PlannerRun
     from app.models.user import User
     from app.models.workspace import Workspace
 
@@ -39,6 +41,11 @@ class Goal(Base):
 
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Added for the Planner Productization phase (goal metadata the
+    # planner/roadmap can eventually reason about) - nullable and not yet
+    # surfaced in the Create Goal form, so existing goals and flows are
+    # unaffected until a UI actually collects it.
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # TODO(goal-fields): fields planned but not yet implemented - see
     # docs/product_principles.md and docs/roadmap.md. Adding these is a
@@ -48,13 +55,11 @@ class Goal(Base):
     #                                   (career, health, finance, etc.)
     #   - priority: enum | None      - low/medium/high, informs Planner
     #                                   sequencing across multiple goals
-    #   - deadline: datetime | None  - target completion date, feeds
-    #                                   Timeline and Adaptive Planning
     #   - visibility: enum           - private/shared, relevant once
     #                                   multi-user Workspaces exist (see
     #                                   docs/roadmap.md Post-MVP)
-    # (`description` above already covers the "description" field once
-    # planned here - no action needed for it.)
+    # (`description` and `deadline` above already cover the two fields
+    # once planned here - no action needed for either.)
 
     # Plain manual field for now - nothing computes this automatically yet.
     # Once Tasks/Planner are real (see docs/roadmap.md), progress should be
@@ -72,6 +77,19 @@ class Goal(Base):
     owner: Mapped[User] = relationship(back_populates="goals")
     workspace: Mapped[Workspace] = relationship(
         back_populates="goal", uselist=False, cascade="all, delete-orphan"
+    )
+    # One-to-one as of the Planner Productization phase (previously a
+    # Goal could accumulate several Plan rows over time; see
+    # app/models/plan.py for why that changed to "regenerate updates the
+    # one Plan in place" instead). `None` until Generate Plan is called
+    # once.
+    plan: Mapped[Plan | None] = relationship(
+        back_populates="goal", uselist=False, cascade="all, delete-orphan"
+    )
+    planner_runs: Mapped[list[PlannerRun]] = relationship(
+        back_populates="goal",
+        cascade="all, delete-orphan",
+        order_by="PlannerRun.created_at.desc()",
     )
 
     @property

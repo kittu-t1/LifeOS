@@ -67,9 +67,19 @@ export default function DashboardView() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-24 px-8 py-20 sm:gap-32 sm:py-28">
-      <HeroSection onCreateGoal={() => openCreateModal()} />
+      {/* Hero and Goal Showcase share a tighter gap than the rest of the
+          page's rhythm - the orbit illustration already fills most of
+          the Hero's vertical space, so the full gap-24/32 rhythm here
+          left a stretch of empty space before Goal Showcase even
+          started. The bigger gap-24/32 is kept below, between Goal
+          Showcase and the live "Your Goals" section, where it's actually
+          separating two distinct ideas rather than padding out
+          whitespace. */}
+      <div className="flex flex-col gap-12 sm:gap-16">
+        <HeroSection onCreateGoal={() => openCreateModal()} />
 
-      <GoalShowcaseSection onSelectExample={(title) => openCreateModal(title)} />
+        <GoalShowcaseSection onSelectExample={(title) => openCreateModal(title)} />
+      </div>
 
       <div
         className="animate-fade-in-up flex flex-col gap-8"

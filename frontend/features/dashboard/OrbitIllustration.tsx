@@ -41,7 +41,7 @@ export default function OrbitIllustration() {
   return (
     <div
       aria-hidden
-      className={`${motion.animation.floatSlow} relative mx-auto mt-6 h-80 w-full max-w-lg`}
+      className={`${motion.animation.floatSlow} relative mx-auto mt-6 h-96 w-full max-w-xl`}
     >
       {/* Dashed orbit path - an ellipse made from a circle flattened with scaleY. */}
       <div
@@ -64,9 +64,9 @@ export default function OrbitIllustration() {
           style={{ background: colors.secondaryGlow }}
         />
         <div
-          className={`relative flex h-24 w-24 items-center justify-center ${radius.full.class} ${gradients.primaryButton} ${shadows.buttonPrimary}`}
+          className={`relative flex h-28 w-28 items-center justify-center ${radius.full.class} ${gradients.primaryButton} ${shadows.buttonPrimary}`}
         >
-          <Sparkles size={32} className="text-accent-foreground" strokeWidth={1.75} />
+          <Sparkles size={36} className="text-accent-foreground" strokeWidth={1.75} />
         </div>
       </div>
 
@@ -82,9 +82,9 @@ export default function OrbitIllustration() {
             style={{ background: colors.primaryGlow }}
           />
           <div
-            className={`border-border bg-surface relative flex h-12 w-12 items-center justify-center ${radius.full.class} border ${shadows.floating} ${motion.transition.buttonHover} group-hover:${motion.transform.hoverLiftSm}`}
+            className={`border-border bg-surface relative flex h-14 w-14 items-center justify-center ${radius.full.class} border ${shadows.floating} ${motion.transition.buttonHover} group-hover:${motion.transform.hoverLiftSm}`}
           >
-            <Icon size={19} className="text-accent" strokeWidth={1.75} />
+            <Icon size={22} className="text-accent" strokeWidth={1.75} />
           </div>
         </div>
       ))}

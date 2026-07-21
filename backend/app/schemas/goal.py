@@ -13,6 +13,10 @@ from app.models.goal import GoalStatus
 class GoalCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    # Not yet collected by the Create Goal form - added to the model/API
+    # now (Planner Productization phase) so nothing blocks a future form
+    # field from just working. Optional, so existing callers are unaffected.
+    deadline: datetime | None = None
 
 
 class GoalRead(BaseModel):
@@ -21,6 +25,7 @@ class GoalRead(BaseModel):
     id: uuid.UUID
     title: str
     description: str | None
+    deadline: datetime | None
     status: GoalStatus
     progress: int
     created_at: datetime

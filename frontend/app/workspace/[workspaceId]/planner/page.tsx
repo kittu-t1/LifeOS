@@ -1,8 +1,5 @@
-import { Compass } from "lucide-react";
-import PlaceholderSection from "@/features/workspace/PlaceholderSection";
+import PlannerView from "@/features/planner/PlannerView";
 
 export default function PlannerPage() {
-  return (
-    <PlaceholderSection icon={Compass} title="Planner" comingIn="Planner coming in Sprint 1" />
-  );
+  return <PlannerView />;
 }
