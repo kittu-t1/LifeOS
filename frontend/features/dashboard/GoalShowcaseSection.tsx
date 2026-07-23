@@ -1,8 +1,22 @@
-import { Activity, ArrowUpRight, BrainCircuit, GraduationCap, Rocket } from "lucide-react";
+import {
+  Activity,
+  ArrowUpRight,
+  BrainCircuit,
+  Heart,
+  PiggyBank,
+  Plane,
+  Rocket,
+} from "lucide-react";
 import Card from "@/components/ui/Card";
 import { motion } from "@/design-system/motion";
 import { radius } from "@/design-system/radius";
 
+// One journey per goal category (learning, project, travel, finance,
+// fitness, personal-life) - see the Goal Intake UX Refinement sprint.
+// The previous list was Learning/Project/Fitness/"Master a Skill" (a
+// near-duplicate of the Learning entry) - all achievement/skill-shaped,
+// with travel, finance, and personal-life goals entirely unrepresented
+// even though LifeOS handles them just as well.
 const EXAMPLE_JOURNEYS = [
   {
     icon: BrainCircuit,
@@ -15,14 +29,24 @@ const EXAMPLE_JOURNEYS = [
     journey: "From idea to something people use.",
   },
   {
+    icon: Plane,
+    title: "Plan a Trip",
+    journey: "From wishlist to boarding pass.",
+  },
+  {
+    icon: PiggyBank,
+    title: "Save $10,000",
+    journey: "From spare change to a real cushion.",
+  },
+  {
     icon: Activity,
     title: "Improve Fitness",
     journey: "From first workout to lasting habit.",
   },
   {
-    icon: GraduationCap,
-    title: "Master a Skill",
-    journey: "From practice to mastery.",
+    icon: Heart,
+    title: "Plan a Wedding",
+    journey: 'From engagement to "I do."',
   },
 ];
 

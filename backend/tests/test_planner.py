@@ -14,6 +14,7 @@ from app.models.plan import Plan
 from app.models.planner_run import PlannerRun, PlannerRunStatus
 from app.planner.llm.base import LLMProvider, LLMRequestError, LLMTimeoutError
 from app.planner.llm.factory import get_llm_provider
+from app.planner.prompts import PLANNER_V5_SYSTEM_PROMPT
 
 VALID_PLAN_JSON = json.dumps(
     {
@@ -159,6 +160,9 @@ def test_generate_plan_success(client, db_session, override_llm):
     assert body["milestones"][1]["order"] == 1
     assert len(body["weekly_plan"]) == 2
     assert body["timeline"] == ["Weeks 1-2: Foundation", "Weeks 3-8: Core loop"]
+    # No memories exist for this user - 0, not None, since generate_plan
+    # always runs the memory lookup (see PlanRead.memories_used).
+    assert body["memories_used"] == 0
     assert fake.call_count == 1
 
     # Persisted, not just returned.
@@ -166,7 +170,7 @@ def test_generate_plan_success(client, db_session, override_llm):
     assert db_session.query(Plan).filter(Plan.goal_id == goal_uuid).count() == 1
     run = db_session.query(PlannerRun).filter(PlannerRun.goal_id == goal_uuid).one()
     assert run.status == PlannerRunStatus.SUCCESS
-    assert run.prompt_version == "planner_v3"
+    assert run.prompt_version == "planner_v5"
 
 
 def test_generate_plan_twice_rejects_second_call(client, override_llm):
@@ -264,6 +268,10 @@ def test_get_plan_by_id(client, override_llm):
     response = client.get(f"/api/v1/planner/plans/{plan_id}")
     assert response.status_code == 200
     assert response.json()["id"] == plan_id
+    # memories_used is only set by generate/regenerate's own response
+    # (see api/v1/planner.py) - a plain re-fetch doesn't run memory
+    # lookup again, so it stays null rather than a stale/misleading 0.
+    assert response.json()["memories_used"] is None
 
 
 def test_get_plan_by_id_not_found(client):
@@ -299,7 +307,7 @@ def test_regenerate_plan_updates_in_place(client, db_session, override_llm):
         .order_by(PlannerRun.created_at)
         .all()
     )
-    assert [r.prompt_version for r in runs] == ["planner_v3", "planner_v3_regenerate"]
+    assert [r.prompt_version for r in runs] == ["planner_v5", "planner_v5_regenerate"]
 
 
 def test_regenerate_plan_failure_leaves_plan_untouched(client, db_session, override_llm):
@@ -322,7 +330,7 @@ def test_regenerate_plan_failure_leaves_plan_untouched(client, db_session, overr
 
     run = (
         db_session.query(PlannerRun)
-        .filter(PlannerRun.prompt_version == "planner_v3_regenerate")
+        .filter(PlannerRun.prompt_version == "planner_v5_regenerate")
         .one()
     )
     assert run.status == PlannerRunStatus.FAILED
@@ -347,3 +355,22 @@ def test_regenerate_plan_rejects_empty_adjustment(client, override_llm):
         json={"adjustment": ""},
     )
     assert response.status_code == 422
+
+
+def test_v5_system_prompt_generalizes_memory_reasoning_beyond_its_own_examples():
+    """Locks in the intent behind the v4->v5 bump: the model should reason
+    over whatever User Context it's given, not just the two illustrative
+    cases (time-of-day preference, disliked workload) named in the prompt
+    itself - this can't be proven by a FakeLLMProvider-based test (that
+    would require judging real model reasoning), but the instruction
+    telling it to generalize should always be present in the text we
+    actually send. See app/planner/prompts.py's PLANNER_V5_SYSTEM_PROMPT
+    for the full rule."""
+    assert "not an exhaustive list" in PLANNER_V5_SYSTEM_PROMPT
+    assert "whatever User Context is actually provided" in PLANNER_V5_SYSTEM_PROMPT
+    # The two illustrative examples from the sprint spec are present as
+    # *examples*, not hardcoded branches - proven by the fact that this
+    # is plain text inside a prompt string, not a code path keyed on
+    # these phrases anywhere in planner_service.py.
+    assert "prefers evenings" in PLANNER_V5_SYSTEM_PROMPT
+    assert "dislikes weekend work" in PLANNER_V5_SYSTEM_PROMPT

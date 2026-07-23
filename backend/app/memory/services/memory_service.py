@@ -12,14 +12,14 @@ points one way - a consumer (e.g. planner_service.py) imports
 MemoryService, never the reverse - which is what actually keeps Memory
 reusable as a platform service instead of becoming Planner-flavored.
 
-V1 is intentionally deterministic - no embeddings, no ranking, no LLM
-calls anywhere in this module. `get_relevant_memories` exists as the one
-seam a future semantic-search implementation replaces: same signature
-(user_id, optional category), smarter selection inside. Today "relevant"
-simply means "all of this user's memories, optionally narrowed by
-category" - see the Future Compatibility section of the sprint spec for
-what that method is deliberately leaving room for (importance scoring,
-vector similarity, context ranking) without committing to any of it now.
+Still no embeddings, no vector search, no LLM calls anywhere in this
+module - `get_relevant_memories` is deterministic, ranked by three plain
+signals (category priority, recency, confidence - see
+`_CATEGORY_PRIORITY` below), not "all memories" like the original V1.
+That's the "Relevant Memory Selection" sprint's whole point: the seam a
+future semantic-search implementation eventually replaces is still this
+same method (same signature plus a `limit`), just with a smarter sort
+inside instead of an embedding lookup.
 """
 
 from __future__ import annotations
@@ -29,6 +29,29 @@ import uuid
 from app.memory.models.memory import Memory, MemoryCategory
 from app.memory.repositories.memory_repository import MemoryRepository
 from app.memory.schemas.memory import MemoryCreate, MemoryUpdate
+
+# Lower number = surfaced first. Mirrors the sprint spec's stated
+# priority order (preferences, planning-related notes, active
+# learning/notes, work patterns) mapped onto this app's actual five
+# categories - HABIT_INSIGHT isn't called out in the spec's examples, so
+# it ranks last rather than being excluded outright: a habit streak is
+# still occasionally useful planning context, just less consistently
+# than an explicit stated preference.
+_CATEGORY_PRIORITY: dict[MemoryCategory, int] = {
+    MemoryCategory.PREFERENCE: 0,
+    MemoryCategory.PLANNING_CONTEXT: 1,
+    MemoryCategory.LEARNED_PATTERN: 2,
+    MemoryCategory.NOTE: 3,
+    MemoryCategory.HABIT_INSIGHT: 4,
+}
+
+# Caps how many memories ever reach a prompt, regardless of how many a
+# user has accumulated - an unbounded dump defeats the point of ranking
+# at all (a 50-memory prompt is no more "relevant" than an unranked
+# one) and inflates token cost for no benefit. 8 is a judgment call, not
+# a measured number - generous enough that a handful of real preferences
+# and notes all fit, small enough to stay skimmable in a prompt.
+DEFAULT_RELEVANT_MEMORY_LIMIT = 8
 
 
 class MemoryService:
@@ -67,10 +90,31 @@ class MemoryService:
         self._repository.delete(memory)
 
     def get_relevant_memories(
-        self, *, user_id: uuid.UUID, category: MemoryCategory | None = None
+        self,
+        *,
+        user_id: uuid.UUID,
+        category: MemoryCategory | None = None,
+        limit: int = DEFAULT_RELEVANT_MEMORY_LIMIT,
     ) -> list[Memory]:
         """Called by consumers that want planner-style context (see
-        app/services/planner_service.py) - see module docstring for why
-        "relevant" is just "all/category-filtered" in V1, not a ranked
-        subset."""
-        return self.list_memories(user_id=user_id, category=category)
+        app/services/planner_service.py's `_build_memory_context`).
+
+        Ranks by (category priority, most-recently-updated first, highest
+        confidence first) and returns at most `limit` - see module
+        docstring for why this is still deterministic sorting, not
+        semantic search. A memory with `confidence=None` sorts as if it
+        were 0.0 (least confident), not as "unknown/skip" - there's no
+        row in this app that can currently produce a null confidence
+        (the schema defaults it to 1.0), but the sort has to resolve to
+        *something* for whichever future SYSTEM-sourced writer leaves it
+        unset."""
+        memories = self.list_memories(user_id=user_id, category=category)
+        ranked = sorted(
+            memories,
+            key=lambda m: (
+                _CATEGORY_PRIORITY.get(m.category, len(_CATEGORY_PRIORITY)),
+                -m.updated_at.timestamp(),
+                -(m.confidence or 0.0),
+            ),
+        )
+        return ranked[:limit]

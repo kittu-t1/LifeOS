@@ -104,6 +104,21 @@ class MilestoneRead(BaseModel):
     created_at: datetime
 
 
+class SuggestedMemory(BaseModel):
+    """A candidate Memory the Planner noticed but did NOT save (see
+    app/planner/preference_detection.py and
+    planner_service._suggest_memory) - shaped identically to
+    app.memory.schemas.memory.MemoryCreate's fields so the frontend can
+    forward it to the existing POST /api/v1/memories endpoint unchanged
+    if the user clicks Accept. Never written to the database by the
+    Planner itself; this is purely what generate_plan/regenerate_plan
+    return alongside the plan for the frontend to offer as a suggestion."""
+
+    category: str
+    key: str
+    value: str
+
+
 class PlanRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -121,3 +136,18 @@ class PlanRead(BaseModel):
     milestones: list[MilestoneRead]
     created_at: datetime
     updated_at: datetime
+    # Not a Plan column - never read via from_attributes. Only
+    # generate_plan/regenerate_plan's route handlers set this (see
+    # api/v1/planner.py), to how many ranked memories were injected into
+    # the prompt for that specific call (see
+    # planner_service._build_memory_context). None on a plain GET, so the
+    # frontend's "Personalized using N memories" indicator only appears
+    # right after an actual generate/regenerate, not on every page load.
+    memories_used: int | None = None
+    # Same "not a Plan column, only set by generate/regenerate's route
+    # handler" treatment as memories_used - see that field's comment.
+    # None means either nothing preference-like was detected in this
+    # call's input, or a matching memory already exists (see
+    # planner_service._suggest_memory's dedupe check) - either way,
+    # there's nothing worth asking the user about.
+    suggested_memory: SuggestedMemory | None = None

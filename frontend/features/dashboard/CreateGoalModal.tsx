@@ -16,12 +16,18 @@ interface CreateGoalModalProps {
   initialTitle?: string;
 }
 
+// One example per goal category the Planner should feel natural for
+// (see the Goal Intake UX Refinement sprint's audit categories:
+// learning, project, travel, finance, fitness, personal-life) - not
+// just project/career goals, so the placeholder itself signals that
+// LifeOS isn't only for that one kind of goal.
 const EXAMPLES = [
+  "Learn React",
   "Build LifeOS MVP",
-  "Prepare for Google Interview",
-  "Launch AI Startup",
-  "Lose 10kg",
-  "Plan Europe Trip",
+  "Plan a Trip to Hyderabad",
+  "Save $10,000",
+  "Run a Marathon",
+  "Organize a Wedding",
 ];
 
 /**

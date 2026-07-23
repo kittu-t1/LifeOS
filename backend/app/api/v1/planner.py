@@ -92,13 +92,20 @@ def generate_plan(
     goal = _get_owned_goal(db, user=current_user, goal_id=goal_id)
 
     try:
-        plan = planner_service.generate_plan(db, goal=goal, data=payload, llm_provider=llm_provider)
+        result = planner_service.generate_plan(
+            db, goal=goal, data=payload, llm_provider=llm_provider
+        )
     except PlanAlreadyExistsError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except (LLMProviderError, PlannerOutputError, PlanPersistenceError) as exc:
         raise _map_planner_error(exc) from exc
 
-    return PlanRead.model_validate(plan)
+    return PlanRead.model_validate(result.plan).model_copy(
+        update={
+            "memories_used": result.memories_used,
+            "suggested_memory": result.suggested_memory,
+        }
+    )
 
 
 @router.get("/goals/{goal_id}", response_model=PlanRead)
@@ -137,10 +144,15 @@ def regenerate_plan(
     plan = _get_owned_plan(db, user=current_user, plan_id=plan_id)
 
     try:
-        updated = planner_service.regenerate_plan(
+        result = planner_service.regenerate_plan(
             db, plan=plan, adjustment=payload.adjustment, llm_provider=llm_provider
         )
     except (LLMProviderError, PlannerOutputError, PlanPersistenceError) as exc:
         raise _map_planner_error(exc) from exc
 
-    return PlanRead.model_validate(updated)
+    return PlanRead.model_validate(result.plan).model_copy(
+        update={
+            "memories_used": result.memories_used,
+            "suggested_memory": result.suggested_memory,
+        }
+    )

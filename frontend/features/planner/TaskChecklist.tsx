@@ -82,6 +82,16 @@ export function TaskRow({
               {task.estimated_minutes}m
             </span>
           )}
+          {/* The AI writes a one-sentence description for every task (see
+              PLANNER_V5_SYSTEM_PROMPT's "Generate" section) but until now
+              nothing ever displayed it - shown here, shared by both
+              TaskChecklist and TodaysFocus since both render rows through
+              this one component. */}
+          {task.description && (
+            <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
+              {task.description}
+            </span>
+          )}
         </span>
       </button>
     </li>

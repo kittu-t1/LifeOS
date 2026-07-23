@@ -24,6 +24,11 @@ direction rule: consumers import MemoryService, this module never
 imports them back).
 
 See docs/agents.md and docs/architecture.md for the original intended
-design this now implements (V1: no embeddings, no ranking, no LLM calls
-- see Future Compatibility in the Memory Engine sprint spec).
+design this now implements (V1: no embeddings, no LLM calls - see
+Future Compatibility in the Memory Engine sprint spec). Memory selection
+is deterministic, not semantic: MemoryService.get_relevant_memories
+ranks by category priority, recency, and confidence - a plain sort, not
+a vector similarity search - and the Planner injects that ranked context
+directly into its prompts (see app/services/planner_service.py's
+_build_memory_context).
 """

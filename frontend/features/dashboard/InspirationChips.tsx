@@ -2,13 +2,20 @@ import { motion } from "@/design-system/motion";
 import { radius } from "@/design-system/radius";
 import { shadows } from "@/design-system/shadows";
 
+// One example per goal category (learning, project, travel, finance,
+// fitness, personal-life) - see the Goal Intake UX Refinement sprint.
+// The old list leaned heavily on project/career goals (three of six
+// entries), which quietly signals LifeOS is mainly for that one shape of
+// goal - these chips are most people's first impression of what LifeOS
+// is "for," so the mix matters here as much as the Planner form's own
+// copy does.
 const EXAMPLE_GOALS = [
-  { icon: "🚀", label: "Build LifeOS MVP" },
-  { icon: "💼", label: "Land Dream Job" },
-  { icon: "🤖", label: "Launch AI Startup" },
-  { icon: "✈️", label: "Europe Trip" },
-  { icon: "🏋️", label: "Lose 10kg" },
   { icon: "📚", label: "Learn AI" },
+  { icon: "🚀", label: "Build LifeOS MVP" },
+  { icon: "✈️", label: "Europe Trip" },
+  { icon: "💰", label: "Save $10,000" },
+  { icon: "🏋️", label: "Lose 10kg" },
+  { icon: "💍", label: "Plan a Wedding" },
 ];
 
 /**

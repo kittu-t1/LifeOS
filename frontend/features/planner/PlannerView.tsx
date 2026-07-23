@@ -5,10 +5,11 @@ import GoalInputCard from "@/features/planner/GoalInputCard";
 import PlanResultView from "@/features/planner/PlanResultView";
 import { useWorkspace } from "@/features/workspace/WorkspaceContext";
 import { computeProgress, updateTaskInWeeks } from "@/lib/planTasks";
+import { createMemory } from "@/services/memory";
 import { generatePlan, getLatestPlan, PlannerApiError, regeneratePlan } from "@/services/planner";
 import { acceptReplan, proposeReplan } from "@/services/replan";
 import { getPlanTasks, updateTaskStatus } from "@/services/tasks";
-import type { GeneratePlanInput, Plan } from "@/types/planner";
+import type { GeneratePlanInput, Plan, SuggestedMemory } from "@/types/planner";
 import type { ReplanProposal } from "@/types/replan";
 import type { PlanTask, WeekTasksGroup } from "@/types/task";
 
@@ -48,6 +49,9 @@ export default function PlannerView() {
   const [replanning, setReplanning] = useState(false);
   const [acceptingReplan, setAcceptingReplan] = useState(false);
   const [replanError, setReplanError] = useState<string | null>(null);
+  const [memorySuggestion, setMemorySuggestion] = useState<SuggestedMemory | null>(null);
+  const [savingMemorySuggestion, setSavingMemorySuggestion] = useState(false);
+  const [memorySuggestionError, setMemorySuggestionError] = useState<string | null>(null);
 
   const goalId = workspace?.goal.id;
 
@@ -103,6 +107,8 @@ export default function PlannerView() {
       const generated = await generatePlan(goalId, input);
       setPlan(generated);
       setPhase("result");
+      setMemorySuggestion(generated.suggested_memory ?? null);
+      setMemorySuggestionError(null);
       void loadTasks(generated.id);
     } catch (err) {
       setError(
@@ -123,6 +129,8 @@ export default function PlannerView() {
       const updated = await regeneratePlan(plan.id, { adjustment });
       setPlan(updated);
       setImproveModalOpen(false);
+      setMemorySuggestion(updated.suggested_memory ?? null);
+      setMemorySuggestionError(null);
       void loadTasks(updated.id);
     } catch (err) {
       setImproveError(
@@ -193,6 +201,30 @@ export default function PlannerView() {
     setReplanError(null);
   }
 
+  // "Create a Memory using the existing Memory API" per the spec -
+  // SuggestedMemory (types/planner.ts) is shaped identically to
+  // MemoryCreateInput on purpose, so this is a direct pass-through, not
+  // a new endpoint or a reshaped payload.
+  async function handleAcceptMemorySuggestion() {
+    if (!memorySuggestion) return;
+    setSavingMemorySuggestion(true);
+    setMemorySuggestionError(null);
+    try {
+      await createMemory(memorySuggestion);
+      setMemorySuggestion(null);
+    } catch {
+      setMemorySuggestionError("Couldn't save that. Please try again.");
+    } finally {
+      setSavingMemorySuggestion(false);
+    }
+  }
+
+  // Decline is "do nothing" per the spec - no API call, just dismiss.
+  function handleDeclineMemorySuggestion() {
+    setMemorySuggestion(null);
+    setMemorySuggestionError(null);
+  }
+
   if (workspaceLoading || phase === "checking") {
     return (
       <div className="text-muted-foreground px-6 py-24 text-center text-sm">Loading planner…</div>
@@ -232,6 +264,11 @@ export default function PlannerView() {
         onDiscardReplan={handleDiscardReplan}
         acceptingReplan={acceptingReplan}
         replanError={replanError}
+        memorySuggestion={memorySuggestion}
+        onAcceptMemorySuggestion={handleAcceptMemorySuggestion}
+        onDeclineMemorySuggestion={handleDeclineMemorySuggestion}
+        savingMemorySuggestion={savingMemorySuggestion}
+        memorySuggestionError={memorySuggestionError}
       />
     );
   }

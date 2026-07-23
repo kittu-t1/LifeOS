@@ -65,10 +65,16 @@ def propose_replan(
     tasks = task_service.get_tasks_for_plan(db, plan_id=plan.id)
     active_habits = habit_service.list_active_habits(db, user_id=current_user.id)
 
-    # Memory Engine integration point (see app/memory/) - same "log, don't
-    # inject" scope as planner_service._log_relevant_memories: replanning
-    # doesn't change its scheduling behavior based on memories yet, this
-    # just surfaces what a future version would have available.
+    # Memory Engine integration point (see app/memory/) - deliberately
+    # still log-only, unlike planner_service.generate_plan/regenerate_plan
+    # (see that module's _build_memory_context), which now inject a
+    # ranked "User Context" block into the LLM prompt. There's no prompt
+    # to inject into here: adaptive_planning_service.propose_replan below
+    # is a deterministic scheduler (overdue detection + bin-packing), not
+    # an LLM call - this log line just keeps the same "memories were
+    # consulted" observability that generate/regenerate had before their
+    # prompts were wired up, in case replan starts using memory for real
+    # scheduling decisions later.
     memory_service = MemoryService(SqlAlchemyMemoryRepository(db))
     relevant_memories = memory_service.get_relevant_memories(user_id=current_user.id)
     logger.info(

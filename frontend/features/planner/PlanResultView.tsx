@@ -4,11 +4,12 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ImprovePlanModal from "@/features/planner/ImprovePlanModal";
+import MemorySuggestionCard from "@/features/planner/MemorySuggestionCard";
 import PlanProgress from "@/features/planner/PlanProgress";
 import ReplanModal from "@/features/planner/ReplanModal";
 import TaskChecklist from "@/features/planner/TaskChecklist";
 import TodaysFocus from "@/features/planner/TodaysFocus";
-import type { Plan } from "@/types/planner";
+import type { Plan, SuggestedMemory } from "@/types/planner";
 import type { ReplanProposal } from "@/types/replan";
 import type { PlanTask, Progress, WeekTasksGroup } from "@/types/task";
 
@@ -32,6 +33,11 @@ interface PlanResultViewProps {
   onDiscardReplan: () => void;
   acceptingReplan: boolean;
   replanError: string | null;
+  memorySuggestion: SuggestedMemory | null;
+  onAcceptMemorySuggestion: () => void;
+  onDeclineMemorySuggestion: () => void;
+  savingMemorySuggestion: boolean;
+  memorySuggestionError: string | null;
 }
 
 /**
@@ -62,11 +68,26 @@ export default function PlanResultView({
   onDiscardReplan,
   acceptingReplan,
   replanError,
+  memorySuggestion,
+  onAcceptMemorySuggestion,
+  onDeclineMemorySuggestion,
+  savingMemorySuggestion,
+  memorySuggestionError,
 }: PlanResultViewProps) {
   const weekFocus = Object.fromEntries(plan.weekly_plan.map((week) => [week.week, week.focus]));
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">
+      {memorySuggestion && (
+        <MemorySuggestionCard
+          suggestion={memorySuggestion}
+          onAccept={onAcceptMemorySuggestion}
+          onDecline={onDeclineMemorySuggestion}
+          saving={savingMemorySuggestion}
+          error={memorySuggestionError}
+        />
+      )}
+
       {progress && <PlanProgress progress={progress} />}
 
       {taskWeeks && <TodaysFocus goalTitle={goalTitle} weeks={taskWeeks} onToggle={onToggleTask} />}
@@ -79,7 +100,17 @@ export default function PlanResultView({
             </h2>
             <p className="text-foreground text-base leading-relaxed">{plan.mission}</p>
           </div>
-          <Badge tone="accent">{plan.estimated_duration}</Badge>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Badge tone="accent">{plan.estimated_duration}</Badge>
+            {/* Optional, non-cluttering signal that this plan actually
+                used the user's Memory - only present right after a
+                generate/regenerate response (see types/planner.ts), so
+                it disappears on a normal page reload rather than
+                sticking around as permanent chrome. */}
+            {!!plan.memories_used && (
+              <Badge tone="neutral">Personalized · {plan.memories_used} memories</Badge>
+            )}
+          </div>
         </div>
       </Card>
 
