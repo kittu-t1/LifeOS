@@ -31,12 +31,15 @@ export default function ExploreView() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-14 px-8 py-16 sm:py-20">
+      {/* Back to Home, not Goals - the "Explore LifeOS" tile that leads
+          here now lives on the Home page (see features/home/HomeView.tsx),
+          not the Goals page. */}
       <Link
         href="/"
         className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-sm font-medium transition-colors duration-200"
       >
         <ArrowLeft size={15} />
-        Back to Dashboard
+        Back to Home
       </Link>
 
       <div className="animate-fade-in-up flex flex-col items-center gap-3 text-center">
@@ -80,7 +83,7 @@ export default function ExploreView() {
 
       <div className="border-border flex flex-col items-center gap-4 border-t pt-12 text-center">
         <p className="text-muted-foreground text-sm">Ready to put it to work?</p>
-        <Button onClick={() => router.push("/")}>
+        <Button onClick={() => router.push("/goals")}>
           Create Your First Goal
           <ArrowRight size={15} />
         </Button>

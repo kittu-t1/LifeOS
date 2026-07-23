@@ -63,7 +63,11 @@ function WorkspaceTitleBar() {
   return (
     <div className="flex items-center justify-between px-6 py-5">
       <div className="flex items-center gap-3">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
+        {/* Back to the goal list (/goals), not Home - a workspace is
+            reached from a goal card there, so that's where "back" should
+            land (see the sidebar architecture redesign, which split the
+            welcome-only Home page off from Goals). */}
+        <Link href="/goals" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft size={18} />
         </Link>
         <h1 className="text-foreground text-lg font-semibold">{workspace.goal.title}</h1>

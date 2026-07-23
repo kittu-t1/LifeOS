@@ -46,5 +46,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     );
   }
 
+  // A 204 (e.g. DELETE /memories/{id} - see services/memory.ts) has no
+  // body at all; res.json() would throw on the empty string. Every
+  // other route in this app returns JSON, so this is the one exception,
+  // not a general "maybe there's a body" check.
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }

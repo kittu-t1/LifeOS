@@ -1,11 +1,12 @@
-import DashboardView from "@/features/dashboard/DashboardView";
+import HomeView from "@/features/home/HomeView";
 
 /**
- * The Dashboard is the app's home screen (see docs/vision.md and Sprint 1
- * Day 3). There's no login gate yet (see app/core/deps.py on the backend -
- * a single demo user is used until real auth exists), so this is what
- * every visitor lands on directly.
+ * The sidebar's "Home" destination - a welcome message, not the goal
+ * dashboard (that moved to /goals, see app/goals/page.tsx and the
+ * sidebar architecture redesign). There's no login gate yet (see
+ * app/core/deps.py on the backend - a single demo user is used until
+ * real auth exists), so this is what every visitor lands on directly.
  */
 export default function Home() {
-  return <DashboardView />;
+  return <HomeView />;
 }

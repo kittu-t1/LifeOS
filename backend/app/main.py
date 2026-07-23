@@ -3,8 +3,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import goals, health, planner, workspaces
+from app.api.v1 import execution, goals, habits, health, planner, replan, workspaces
 from app.core.config import get_settings
+from app.memory.api.routes import router as memory_router
 
 settings = get_settings()
 
@@ -22,6 +23,10 @@ app.include_router(health.router, prefix=settings.api_v1_prefix)
 app.include_router(goals.router, prefix=settings.api_v1_prefix)
 app.include_router(workspaces.router, prefix=settings.api_v1_prefix)
 app.include_router(planner.router, prefix=settings.api_v1_prefix)
+app.include_router(execution.router, prefix=settings.api_v1_prefix)
+app.include_router(replan.router, prefix=settings.api_v1_prefix)
+app.include_router(habits.router, prefix=settings.api_v1_prefix)
+app.include_router(memory_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")

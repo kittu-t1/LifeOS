@@ -22,6 +22,14 @@ addresses "week 3" or "timeline entry 2" individually today. Regenerating
 replaces a Plan's milestones wholesale (old ones deleted via cascade, new
 ones inserted) rather than diffing/updating individual rows - the AI
 output is treated as a full new draft each time, not a patch.
+
+As of the Execution Engine phase, weekly_plan's `tasks` are ALSO
+promoted into their own table - see app/models/plan_task.py. weekly_plan
+(JSON) is kept as-is for its `focus` text per week (still genuinely
+read-only planner content) and as a lightweight historical record, but
+PlanTask is the source of truth for anything execution needs: status,
+completion, progress. The two are linked only by week_number, not a
+foreign key - see planner_service._build_tasks.
 """
 
 from __future__ import annotations
@@ -37,6 +45,8 @@ from app.database.session import Base
 
 if TYPE_CHECKING:
     from app.models.goal import Goal
+    from app.models.plan_replan_event import PlanReplanEvent
+    from app.models.plan_task import PlanTask
 
 
 class Plan(Base):
@@ -51,12 +61,15 @@ class Plan(Base):
     estimated_duration: Mapped[str] = mapped_column(String(100))
 
     # Free-form structured data straight from the validated LLM output
-    # (see app/schemas/planner.py:PlannerLLMOutput) - lists of plain
-    # strings/small objects that nothing else in the app needs to query
-    # or join on individually, so a JSON column is a better fit than more
-    # tables (unlike Milestone, which does need to be its own table).
+    # (see app/schemas/planner.py:PlannerLLMOutput). `timeline` still has
+    # no reason to be its own table (nothing addresses "timeline entry 2"
+    # individually). `weekly_plan.tasks` is now duplicated into PlanTask
+    # rows on save (see planner_service._build_tasks) - this JSON copy is
+    # historical/display-only past that point, not the execution source
+    # of truth.
     #   timeline: list[str]
-    #   weekly_plan: list[{"week": int, "focus": str, "tasks": list[str]}]
+    #   weekly_plan: list[{"week": int, "focus": str, "tasks": list[TaskItem]}]
+    #     where TaskItem = {"title": str, "description": str, "estimated_minutes": int | None}
     timeline: Mapped[list[Any]] = mapped_column(JSON)
     weekly_plan: Mapped[list[Any]] = mapped_column(JSON)
 
@@ -77,6 +90,20 @@ class Plan(Base):
         back_populates="plan",
         cascade="all, delete-orphan",
         order_by="Milestone.order",
+    )
+    tasks: Mapped[list[PlanTask]] = relationship(
+        back_populates="plan",
+        cascade="all, delete-orphan",
+        order_by="PlanTask.display_order",
+    )
+    # Audit trail of accepted replans (see
+    # app/services/adaptive_planning_service.py) - unlike milestones/tasks,
+    # never wholesale-replaced or deleted on regenerate; it's history, not
+    # current state.
+    replan_events: Mapped[list[PlanReplanEvent]] = relationship(
+        back_populates="plan",
+        cascade="all, delete-orphan",
+        order_by="PlanReplanEvent.created_at.desc()",
     )
 
 

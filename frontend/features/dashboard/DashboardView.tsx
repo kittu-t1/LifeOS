@@ -4,44 +4,44 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "@/design-system/motion";
 import CreateGoalModal from "@/features/dashboard/CreateGoalModal";
+import DashboardActions from "@/features/dashboard/DashboardActions";
+import DashboardHero from "@/features/dashboard/DashboardHero";
 import EmptyGoalsState from "@/features/dashboard/EmptyGoalsState";
 import GoalCard from "@/features/dashboard/GoalCard";
 import GoalShowcaseSection from "@/features/dashboard/GoalShowcaseSection";
-import HeroSection from "@/features/dashboard/HeroSection";
 import { listGoals } from "@/services/goals";
 import type { Goal } from "@/types/goal";
 
-function timeOfDayGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 /**
- * The homepage as a storytelling landing experience (Hero -> Goal
- * Showcase), ending in the real, functional dashboard - the actual
- * Create Goal flow and goal list. Every section above "Your Goals" is
- * presentation that explains the product; "Your Goals" is where the
- * product actually runs. See docs/vision.md for the underlying goal ->
- * workspace -> execution -> outcome arc this page is telling.
+ * The dashboard as a home screen, not a landing page: a personalized
+ * greeting (DashboardHero), a single "Create Goal" action
+ * (DashboardActions), the Goal Showcase's example journeys, then the
+ * real, functional goal list ("Your Goals"). See docs/vision.md for the
+ * underlying goal -> workspace -> execution -> outcome arc this page is
+ * telling.
  *
- * Two sections intentionally aren't repeated here - both used to be
- * compact inline teasers, and both duplicated /explore
+ * Per the sidebar architecture redesign, this page's job narrowed on
+ * purpose: Goals is the center's only concern now. Habits and Memory
+ * used to have their own dashboard entry points (a "Goals + Habits"
+ * two-card row) - both moved to the sidebar (see
+ * components/layout/navConfig.ts and components/layout/MainLayout.tsx),
+ * reachable from every page instead of competing for space on this one.
+ * The center should always answer "what am I trying to accomplish" -
+ * the sidebar answers "what tools help me accomplish it."
+ *
+ * DashboardHero replaces the old marketing-style Hero (a fixed headline
+ * + orbit illustration + single "Create Your First Goal" CTA - see git
+ * history for HeroSection.tsx/OrbitIllustration.tsx, removed once
+ * nothing referenced them).
+ *
+ * One section intentionally isn't repeated here - it used to be a
+ * compact inline teaser, and duplicated /explore
  * (features/explore/ExploreView.tsx) with no real benefit once the
- * "Explore LifeOS" tile reliably takes people to the full version:
- *   - the step-by-step "How LifeOS works" walkthrough (removed; was
- *     HowItWorksSection.tsx)
- *   - "The intelligence behind LifeOS" capability list (removed; was
- *     AIIntelligenceSection.tsx) - three of its four capabilities
- *     (roadmap generation, personal reflection, and progress tracking)
- *     restated what the AI Planning/Daily Execution/Reflection steps on
- *     /explore already say; the one genuinely new idea, smart
- *     reminders, was folded into the Daily Execution step's brief
- *     (see workflowSteps.ts) instead of keeping a whole section alive
- *     for it.
- * One copy of this content, reached through one link, beats two copies
- * that can drift apart.
+ * "Explore LifeOS" tile (inside GoalShowcaseSection) reliably takes
+ * people to the full version: the step-by-step "How LifeOS works"
+ * walkthrough (removed; was HowItWorksSection.tsx). One copy of this
+ * content, reached through one link, beats two copies that can drift
+ * apart.
  */
 export default function DashboardView() {
   const router = useRouter();
@@ -67,16 +67,15 @@ export default function DashboardView() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-24 px-8 py-20 sm:gap-32 sm:py-28">
-      {/* Hero and Goal Showcase share a tighter gap than the rest of the
-          page's rhythm - the orbit illustration already fills most of
-          the Hero's vertical space, so the full gap-24/32 rhythm here
-          left a stretch of empty space before Goal Showcase even
-          started. The bigger gap-24/32 is kept below, between Goal
-          Showcase and the live "Your Goals" section, where it's actually
-          separating two distinct ideas rather than padding out
-          whitespace. */}
+      {/* Hero, Actions, and Goal Showcase share a tighter gap than the
+          rest of the page's rhythm - all three are one continuous
+          "here's what LifeOS is and how to start" opening statement, not
+          separate ideas that need the bigger gap-24/32 rhythm used below
+          between Goal Showcase and the live "Your Goals" section. */}
       <div className="flex flex-col gap-12 sm:gap-16">
-        <HeroSection onCreateGoal={() => openCreateModal()} />
+        <DashboardHero />
+
+        <DashboardActions onCreateGoal={() => openCreateModal()} />
 
         <GoalShowcaseSection onSelectExample={(title) => openCreateModal(title)} />
       </div>
@@ -89,13 +88,12 @@ export default function DashboardView() {
           {/* Names this section for what it actually is - the live,
               functional part of the page below the storytelling sections
               above it (see the "Dashboard Experience" framing: LifeOS as
-              a "Life Command Center," not a bare goal list). */}
+              a "Life Command Center," not a bare goal list). The
+              time-based greeting already lives in DashboardHero above,
+              so this heading doesn't repeat it. */}
           <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             Life Command Center
           </p>
-          {goals !== null && goals.length > 0 && (
-            <p className="text-muted-foreground text-sm">{timeOfDayGreeting()}, welcome back.</p>
-          )}
           <h2 className="text-foreground text-3xl font-semibold tracking-tight">Your Goals</h2>
         </div>
 

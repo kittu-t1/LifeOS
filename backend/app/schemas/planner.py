@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,14 +31,34 @@ class MilestoneItem(BaseModel):
     duration: str = ""
 
 
+class TaskItem(BaseModel):
+    """One weekly-plan task as the LLM returns it (planner_v2+), before
+    it becomes a PlanTask row - see app/services/planner_service.py's
+    _build_tasks and app/models/plan_task.py. estimated_minutes is
+    optional because a model response missing it shouldn't fail
+    validation over one soft field the way a missing title should."""
+
+    title: str = Field(min_length=1, max_length=255)
+    description: str = ""
+    estimated_minutes: int | None = Field(default=None, ge=1)
+
+
 class WeeklyPlanItem(BaseModel):
+    """LLM-output-only shape, used by PlannerLLMOutput below - NOT reused
+    for PlanRead.weekly_plan (see PlanRead), because that column can
+    still hold planner_v1-era rows where tasks were plain strings, not
+    TaskItem objects. Forcing old rows through this schema would break
+    reading them; PlanTask is the real, shape-stable source of truth for
+    tasks going forward, so this only needs to validate what a *fresh*
+    LLM call returns right now."""
+
     week: int = Field(ge=1)
     focus: str = Field(min_length=1)
-    tasks: list[str] = Field(default_factory=list)
+    tasks: list[TaskItem] = Field(default_factory=list)
 
 
 class PlannerLLMOutput(BaseModel):
-    """The exact structured JSON contract planner_v1 asks the model for.
+    """The exact structured JSON contract planner_v2 asks the model for.
     Anything the model returns that doesn't fit this shape is treated as
     an invalid response (see app/planner/parser.py), not silently
     coerced - a plan with a missing mission or zero milestones isn't a
@@ -91,7 +112,12 @@ class PlanRead(BaseModel):
     mission: str
     estimated_duration: str
     timeline: list[str]
-    weekly_plan: list[WeeklyPlanItem]
+    # Deliberately untyped (raw passthrough), unlike PlannerLLMOutput's
+    # strict WeeklyPlanItem - see that class's docstring for why. The
+    # frontend uses this only for each week's `focus` label; the actual
+    # task checklist comes from GET /plans/{id}/tasks (PlanTask), not
+    # this field.
+    weekly_plan: list[dict[str, Any]]
     milestones: list[MilestoneRead]
     created_at: datetime
     updated_at: datetime

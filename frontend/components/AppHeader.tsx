@@ -7,8 +7,10 @@ import { shadows } from "@/design-system/shadows";
  * A minimal floating pill nav rather than a full-width sticky bar -
  * detached from the top edge with its own rounded border and soft
  * shadow, closer to a visionOS/macOS floating toolbar than a
- * traditional app header. Still just logo + connection status; nothing
- * new to navigate to yet, so the bar stays deliberately quiet.
+ * traditional app header. Logo + connection status, plus Habits and
+ * Memory links - both top-level nav destinations outside a Goal's
+ * Workspace, since both are user-scoped rather than Goal-scoped (see
+ * app/habits/page.tsx and app/memory/page.tsx).
  *
  * ConnectionIndicator only renders in development. It's a genuinely
  * useful "is the FastAPI backend actually running" signal while
@@ -40,7 +42,21 @@ export default function AppHeader() {
           <img src="/favicon.ico" alt="" className={`h-5 w-5 ${radius.sm.class}`} />
           <span className="tracking-tight">LifeOS</span>
         </Link>
-        {isDev && <ConnectionIndicator />}
+        <div className="flex items-center gap-4">
+          <Link
+            href="/habits"
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+          >
+            Habits
+          </Link>
+          <Link
+            href="/memory"
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+          >
+            Memory
+          </Link>
+          {isDev && <ConnectionIndicator />}
+        </div>
       </div>
     </header>
   );

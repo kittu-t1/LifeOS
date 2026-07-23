@@ -16,7 +16,13 @@ export interface Milestone {
 export interface WeeklyPlanItem {
   week: number;
   focus: string;
-  tasks: string[];
+  // As of the Execution Engine phase this is display/historical JSON
+  // only - real, checkable tasks come from GET /plans/{id}/tasks (see
+  // types/task.ts:PlanTask) instead. Left loosely typed since older
+  // plans stored plain strings here and newer ones store
+  // {title, description, estimated_minutes} objects - nothing in the
+  // frontend reads this field's tasks anymore, only `focus`.
+  tasks: unknown[];
 }
 
 export interface Plan {

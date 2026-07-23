@@ -18,31 +18,47 @@ Every attempt from either entry point is recorded as a PlannerRun,
 success or failure, before the function returns or raises - see
 _record_run. That's what makes PlannerRun useful for evaluating AI
 quality later: the failure history is as visible as the successes, and
-the prompt_version tag (planner_v1 vs planner_v1_regenerate) keeps the
+the prompt_version tag (planner_v2 vs planner_v2_regenerate) keeps the
 two call sites separable.
+
+As of the Execution Engine phase, both entry points also build PlanTask
+rows from the LLM output (see _build_tasks) alongside Milestones - this
+module still only generates them, never touches their status. Completing/
+reopening a task is app/services/task_service.py's job, and calculating
+progress from them is app/services/progress_service.py's - see those
+modules for why the split matters (planner_service regenerating a plan
+wholesale-replaces tasks the same way it already did milestones, so it
+owns creation, but never owns "is this done").
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.memory.repositories.memory_repository import SqlAlchemyMemoryRepository
+from app.memory.services.memory_service import MemoryService
 from app.models.goal import Goal
 from app.models.plan import Milestone, Plan
+from app.models.plan_task import PlanTask, PlanTaskStatus
 from app.models.planner_run import PlannerRun, PlannerRunStatus
 from app.planner.llm.base import LLMProvider, LLMProviderError
 from app.planner.parser import PlannerOutputError, parse_planner_output
 from app.planner.prompts import (
-    PLANNER_V1_SYSTEM_PROMPT,
+    PLANNER_V3_SYSTEM_PROMPT,
     PROMPT_VERSION,
     PROMPT_VERSION_REGENERATE,
     build_regenerate_user_prompt,
     build_user_prompt,
 )
 from app.schemas.planner import PlannerGenerateRequest, PlannerLLMOutput
+from app.services import habit_service
+
+logger = logging.getLogger(__name__)
 
 
 class PlanAlreadyExistsError(Exception):
@@ -67,12 +83,15 @@ def generate_plan(
         raise PlanAlreadyExistsError("This goal already has a plan. Use regenerate to update it.")
 
     settings = get_settings()
+    active_habits = habit_service.list_active_habits(db, user_id=goal.user_id)
+    _log_relevant_memories(db, user_id=goal.user_id, context="generate_plan")
     user_prompt = build_user_prompt(
         goal_title=goal.title,
         goal_description=goal.description,
         timeline=data.timeline,
         availability=data.availability,
         constraints=data.constraints,
+        existing_commitments=habit_service.summarize_for_planner(active_habits),
     )
 
     try:
@@ -127,11 +146,14 @@ def regenerate_plan(
         "weekly_plan": plan.weekly_plan,
         "timeline": plan.timeline,
     }
+    active_habits = habit_service.list_active_habits(db, user_id=goal.user_id)
+    _log_relevant_memories(db, user_id=goal.user_id, context="regenerate_plan")
     user_prompt = build_regenerate_user_prompt(
         goal_title=goal.title,
         goal_description=goal.description,
         previous_plan=previous_plan,
         adjustment=adjustment,
+        existing_commitments=habit_service.summarize_for_planner(active_habits),
     )
 
     try:
@@ -162,6 +184,11 @@ def regenerate_plan(
         )
         for index, milestone in enumerate(output.milestones)
     ]
+    # Same "AI output is a full new draft, not a patch" treatment as
+    # milestones - every task from the previous plan is replaced, so a
+    # completed task's checkmark doesn't survive a regenerate under a
+    # since-changed task list pretending to be the same one.
+    plan.tasks = _build_tasks(output)
 
     return _save_plan(
         db,
@@ -206,7 +233,32 @@ def _build_plan(*, goal_id: uuid.UUID, output: PlannerLLMOutput) -> Plan:
         )
         for index, milestone in enumerate(output.milestones)
     ]
+    plan.tasks = _build_tasks(output)
     return plan
+
+
+def _build_tasks(output: PlannerLLMOutput) -> list[PlanTask]:
+    """Flattens weekly_plan into PlanTask rows - the Execution Engine's
+    entry point (see app/models/plan_task.py). display_order runs across
+    the whole plan (not reset per week) so the checklist has one stable
+    ordering. milestone_id is left unset - see the model's docstring for
+    why linking tasks to milestones isn't part of this phase."""
+    tasks: list[PlanTask] = []
+    display_order = 0
+    for week in output.weekly_plan:
+        for task in week.tasks:
+            tasks.append(
+                PlanTask(
+                    week_number=week.week,
+                    title=task.title,
+                    description=task.description or None,
+                    estimated_minutes=task.estimated_minutes,
+                    display_order=display_order,
+                    status=PlanTaskStatus.PENDING,
+                )
+            )
+            display_order += 1
+    return tasks
 
 
 def _save_plan(
@@ -237,6 +289,30 @@ def _save_plan(
     return plan
 
 
+def _log_relevant_memories(db: Session, *, user_id: uuid.UUID, context: str) -> None:
+    """Memory Engine integration point (see app/memory/). Per the sprint
+    spec: "retrieve relevant memories and expose them as planner
+    context... for now, simply log or display which memories would be
+    supplied. Do not alter LLM prompts yet." This deliberately stops at
+    logging - `user_prompt` above is built with zero knowledge of what
+    this function found. Wiring memories into the actual prompt text is
+    a separate, future change once there's a defined format for it.
+
+    Uses MemoryService directly (not the HTTP API) since this runs
+    inside the same request/process - importing app.memory.services is
+    the one-way dependency the Memory Engine's design explicitly allows
+    (see memory_service.py's docstring): Planner depends on Memory,
+    never the reverse."""
+    memory_service = MemoryService(SqlAlchemyMemoryRepository(db))
+    relevant = memory_service.get_relevant_memories(user_id=user_id)
+    logger.info(
+        "planner.%s: %d memories available as context (not yet injected into prompt): %s",
+        context,
+        len(relevant),
+        [f"{m.category.value}:{m.key}" for m in relevant],
+    )
+
+
 def _generate_with_retry(llm_provider: LLMProvider, user_prompt: str) -> PlannerLLMOutput:
     """Calls the LLM and validates its output. If the response isn't
     parseable/valid JSON, retries exactly once with an added corrective
@@ -249,7 +325,7 @@ def _generate_with_retry(llm_provider: LLMProvider, user_prompt: str) -> Planner
     immediate retry fixes, and silently doubling the request on, say, an
     invalid API key just doubles the wait before the same clear error."""
     raw_text = llm_provider.generate(
-        system_prompt=PLANNER_V1_SYSTEM_PROMPT, user_prompt=user_prompt
+        system_prompt=PLANNER_V3_SYSTEM_PROMPT, user_prompt=user_prompt
     )
     try:
         return parse_planner_output(raw_text)
@@ -261,7 +337,7 @@ def _generate_with_retry(llm_provider: LLMProvider, user_prompt: str) -> Planner
             "no code fences."
         )
         raw_text = llm_provider.generate(
-            system_prompt=PLANNER_V1_SYSTEM_PROMPT, user_prompt=corrected_prompt
+            system_prompt=PLANNER_V3_SYSTEM_PROMPT, user_prompt=corrected_prompt
         )
         return parse_planner_output(raw_text)  # let a second failure propagate
 

@@ -32,8 +32,38 @@ VALID_PLAN_JSON = json.dumps(
             },
         ],
         "weekly_plan": [
-            {"week": 1, "focus": "Setup", "tasks": ["Scaffold backend", "Scaffold frontend"]},
-            {"week": 2, "focus": "Data model", "tasks": ["Design schema", "Write migrations"]},
+            {
+                "week": 1,
+                "focus": "Setup",
+                "tasks": [
+                    {
+                        "title": "Scaffold backend",
+                        "description": "FastAPI project skeleton.",
+                        "estimated_minutes": 90,
+                    },
+                    {
+                        "title": "Scaffold frontend",
+                        "description": "Next.js project skeleton.",
+                        "estimated_minutes": 60,
+                    },
+                ],
+            },
+            {
+                "week": 2,
+                "focus": "Data model",
+                "tasks": [
+                    {
+                        "title": "Design schema",
+                        "description": "Sketch tables and relationships.",
+                        "estimated_minutes": 45,
+                    },
+                    {
+                        "title": "Write migrations",
+                        "description": "Alembic revision for the schema.",
+                        "estimated_minutes": 30,
+                    },
+                ],
+            },
         ],
         "timeline": ["Weeks 1-2: Foundation", "Weeks 3-8: Core loop"],
     }
@@ -51,7 +81,17 @@ ADJUSTED_PLAN_JSON = json.dumps(
             },
         ],
         "weekly_plan": [
-            {"week": 1, "focus": "Setup", "tasks": ["Scaffold backend"]},
+            {
+                "week": 1,
+                "focus": "Setup",
+                "tasks": [
+                    {
+                        "title": "Scaffold backend",
+                        "description": "FastAPI project skeleton, take it slow.",
+                        "estimated_minutes": 90,
+                    },
+                ],
+            },
         ],
         "timeline": ["Weeks 1-3: Foundation"],
     }
@@ -126,7 +166,7 @@ def test_generate_plan_success(client, db_session, override_llm):
     assert db_session.query(Plan).filter(Plan.goal_id == goal_uuid).count() == 1
     run = db_session.query(PlannerRun).filter(PlannerRun.goal_id == goal_uuid).one()
     assert run.status == PlannerRunStatus.SUCCESS
-    assert run.prompt_version == "planner_v1"
+    assert run.prompt_version == "planner_v3"
 
 
 def test_generate_plan_twice_rejects_second_call(client, override_llm):
@@ -259,7 +299,7 @@ def test_regenerate_plan_updates_in_place(client, db_session, override_llm):
         .order_by(PlannerRun.created_at)
         .all()
     )
-    assert [r.prompt_version for r in runs] == ["planner_v1", "planner_v1_regenerate"]
+    assert [r.prompt_version for r in runs] == ["planner_v3", "planner_v3_regenerate"]
 
 
 def test_regenerate_plan_failure_leaves_plan_untouched(client, db_session, override_llm):
@@ -282,7 +322,7 @@ def test_regenerate_plan_failure_leaves_plan_untouched(client, db_session, overr
 
     run = (
         db_session.query(PlannerRun)
-        .filter(PlannerRun.prompt_version == "planner_v1_regenerate")
+        .filter(PlannerRun.prompt_version == "planner_v3_regenerate")
         .one()
     )
     assert run.status == PlannerRunStatus.FAILED

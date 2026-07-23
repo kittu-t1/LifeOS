@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import GoalInputCard from "@/features/planner/GoalInputCard";
 import PlanResultView from "@/features/planner/PlanResultView";
 import { useWorkspace } from "@/features/workspace/WorkspaceContext";
+import { computeProgress, updateTaskInWeeks } from "@/lib/planTasks";
 import { generatePlan, getLatestPlan, PlannerApiError, regeneratePlan } from "@/services/planner";
+import { acceptReplan, proposeReplan } from "@/services/replan";
+import { getPlanTasks, updateTaskStatus } from "@/services/tasks";
 import type { GeneratePlanInput, Plan } from "@/types/planner";
+import type { ReplanProposal } from "@/types/replan";
+import type { PlanTask, WeekTasksGroup } from "@/types/task";
 
 type Phase = "checking" | "form" | "result";
 
@@ -37,8 +42,32 @@ export default function PlannerView() {
   const [improveModalOpen, setImproveModalOpen] = useState(false);
   const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
+  const [taskWeeks, setTaskWeeks] = useState<WeekTasksGroup[] | null>(null);
+  const [replanProposal, setReplanProposal] = useState<ReplanProposal | null>(null);
+  const [replanModalOpen, setReplanModalOpen] = useState(false);
+  const [replanning, setReplanning] = useState(false);
+  const [acceptingReplan, setAcceptingReplan] = useState(false);
+  const [replanError, setReplanError] = useState<string | null>(null);
 
   const goalId = workspace?.goal.id;
+
+  // Loads (or reloads) a plan's PlanTask checklist. Called explicitly
+  // after every event that produces a plan with tasks - initial load,
+  // generate, regenerate - rather than a useEffect keyed on plan.id,
+  // since regenerate updates the same Plan row in place (id doesn't
+  // change) and still needs a refetch: it wholesale-replaces tasks (see
+  // planner_service.regenerate_plan), so a completed checkbox from
+  // before a regenerate won't survive one.
+  async function loadTasks(planId: string) {
+    try {
+      const response = await getPlanTasks(planId);
+      setTaskWeeks(response.weeks);
+    } catch {
+      // A failed task fetch shouldn't block the rest of the plan from
+      // rendering - PlanResultView just shows "Loading tasks..." and
+      // Today's Focus/Progress stay hidden until it succeeds.
+    }
+  }
 
   useEffect(() => {
     if (!goalId) return;
@@ -49,6 +78,7 @@ export default function PlannerView() {
         if (cancelled) return;
         setPlan(existing);
         setPhase(existing ? "result" : "form");
+        if (existing) void loadTasks(existing.id);
       })
       .catch(() => {
         // No existing plan is the common, expected case (getLatestPlan
@@ -73,6 +103,7 @@ export default function PlannerView() {
       const generated = await generatePlan(goalId, input);
       setPlan(generated);
       setPhase("result");
+      void loadTasks(generated.id);
     } catch (err) {
       setError(
         err instanceof PlannerApiError
@@ -92,6 +123,7 @@ export default function PlannerView() {
       const updated = await regeneratePlan(plan.id, { adjustment });
       setPlan(updated);
       setImproveModalOpen(false);
+      void loadTasks(updated.id);
     } catch (err) {
       setImproveError(
         err instanceof PlannerApiError
@@ -101,6 +133,64 @@ export default function PlannerView() {
     } finally {
       setImproving(false);
     }
+  }
+
+  // Optimistic toggle: updates the on-screen checklist (and thus
+  // Progress/Today's Focus, both derived from taskWeeks) immediately,
+  // then persists it - rolling back only if the request actually fails,
+  // so a slow network never makes the checkbox feel laggy.
+  async function handleToggleTask(task: PlanTask) {
+    if (!taskWeeks) return;
+    const nextStatus = task.status === "completed" ? "pending" : "completed";
+    const previous = taskWeeks;
+    setTaskWeeks(updateTaskInWeeks(taskWeeks, task.id, nextStatus));
+    try {
+      await updateTaskStatus(task.id, nextStatus);
+    } catch {
+      setTaskWeeks(previous);
+    }
+  }
+
+  // Replan is check-then-review, not click-and-forget (see
+  // services/replan.ts): this only ever fetches a proposal - nothing is
+  // saved until handleAcceptReplan explicitly echoes it back to
+  // /replan/accept, so a user can always discard what they see in
+  // ReplanModal without the plan having changed underneath them.
+  async function handleReplan() {
+    if (!plan) return;
+    setReplanning(true);
+    setReplanError(null);
+    try {
+      const proposal = await proposeReplan(plan.id);
+      setReplanProposal(proposal);
+      setReplanModalOpen(true);
+    } catch {
+      setReplanError("Couldn't check your schedule. Is the backend running?");
+    } finally {
+      setReplanning(false);
+    }
+  }
+
+  async function handleAcceptReplan() {
+    if (!plan || !replanProposal) return;
+    setAcceptingReplan(true);
+    setReplanError(null);
+    try {
+      const response = await acceptReplan(plan.id, replanProposal);
+      setTaskWeeks(response.weeks);
+      setReplanModalOpen(false);
+      setReplanProposal(null);
+    } catch {
+      setReplanError("Couldn't save the new schedule. Please try again.");
+    } finally {
+      setAcceptingReplan(false);
+    }
+  }
+
+  function handleDiscardReplan() {
+    setReplanModalOpen(false);
+    setReplanProposal(null);
+    setReplanError(null);
   }
 
   if (workspaceLoading || phase === "checking") {
@@ -121,6 +211,10 @@ export default function PlannerView() {
     return (
       <PlanResultView
         plan={plan}
+        goalTitle={workspace.goal.title}
+        taskWeeks={taskWeeks}
+        progress={taskWeeks ? computeProgress(taskWeeks) : null}
+        onToggleTask={handleToggleTask}
         improveModalOpen={improveModalOpen}
         onOpenImprove={() => {
           setImproveError(null);
@@ -130,6 +224,14 @@ export default function PlannerView() {
         onSubmitImprove={handleImprove}
         improving={improving}
         improveError={improveError}
+        onReplan={handleReplan}
+        replanning={replanning}
+        replanProposal={replanProposal}
+        replanModalOpen={replanModalOpen}
+        onAcceptReplan={handleAcceptReplan}
+        onDiscardReplan={handleDiscardReplan}
+        acceptingReplan={acceptingReplan}
+        replanError={replanError}
       />
     );
   }
